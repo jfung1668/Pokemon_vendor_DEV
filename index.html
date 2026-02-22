@@ -1,27 +1,3 @@
-<style>
-    /* Add this to your existing CSS */
-    #card-art { 
-        width: 100%; 
-        aspect-ratio: 2.5/3.5; 
-        object-fit: contain; 
-        background: #111;
-        display: none; /* Hidden until loaded */
-        border-bottom: 1px solid #333;
-    }
-    .loading-shimmer {
-        width: 100%;
-        aspect-ratio: 2.5/3.5;
-        background: linear-gradient(90deg, #222 25%, #333 50%, #222 75%);
-        background-size: 200% 100%;
-        animation: shimmer 1.5s infinite;
-    }
-    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-</style>
-
-<div id="img-container" class="loading-shimmer">
-    <img id="card-art" alt="Card Artwork">
-</div>
-
 <script>
     const params = new URLSearchParams(window.location.search);
     const cardId = params.get('id');
@@ -33,7 +9,7 @@
             const card = data.find(c => String(c['Unique Code']).trim() === searchId);
 
             if (card) {
-                // Populate Text Instantly
+                // 1. Fill in the data immediately
                 document.getElementById('ui-name').innerText = card['Product Name'];
                 document.getElementById('ui-set').innerText = `#${card['Card Number']} | ${card['Set']}`;
                 document.getElementById('ui-grade').innerText = `${card['Grade']} | ${card['Card Condition']}`;
@@ -41,28 +17,38 @@
                 const price = (card['My Sales Price'] && card['My Sales Price'] !== "TBD") ? card['My Sales Price'] : card['Suggested Selling Price (Fair Market)'];
                 document.getElementById('ui-price').innerText = price;
 
-                // --- IMAGE API INTEGRATION ---
-                const cleanName = card['Product Name'].split('(')[0].trim();
-                const apiUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(cleanName)}" number:"${card['Card Number']}"`;
+                // 2. Optimized Image Search
+                // This trims everything after a bracket or dash to help the API
+                const cleanName = card['Product Name'].split('(')[0].split('-')[0].trim();
+                const cardNumber = String(card['Card Number']).trim();
+                
+                const apiUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${encodeURIComponent(cleanName)}" number:"${cardNumber}"`;
 
                 fetch(apiUrl)
                     .then(r => r.json())
                     .then(apiData => {
+                        const imgContainer = document.getElementById('img-container');
+                        const imgElement = document.getElementById('card-art');
+
                         if (apiData.data && apiData.data.length > 0) {
-                            const imgUrl = apiData.data[0].images.large;
-                            const imgElement = document.getElementById('card-art');
-                            imgElement.src = imgUrl;
+                            // Match Found!
+                            imgElement.src = apiData.data[0].images.large;
                             imgElement.onload = () => {
-                                document.getElementById('img-container').classList.remove('loading-shimmer');
+                                imgContainer.classList.remove('loading-shimmer');
                                 imgElement.style.display = 'block';
                             };
                         } else {
-                            // If no image found, show a fallback
-                            document.getElementById('img-container').innerHTML = "<div style='padding:50px; color:#444;'>No Image Found</div>";
+                            // No exact match - Stop shimmering and show fallback
+                            imgContainer.classList.remove('loading-shimmer');
+                            imgContainer.innerHTML = `<div style="padding:40px; text-align:center; color:#666;">
+                                <p>Artwork not found for #${cardNumber}</p>
+                                <a href="https://www.tcgplayer.com/search/pokemon/product?q=${encodeURIComponent(cleanName)}" target="_blank" style="color:#2ecc71; text-decoration:none; font-size:12px;">Search TCGPlayer →</a>
+                            </div>`;
                         }
                     })
                     .catch(() => {
-                        document.getElementById('img-container').innerHTML = "<div style='padding:50px; color:#444;'>API Offline</div>";
+                        document.getElementById('img-container').classList.remove('loading-shimmer');
+                        document.getElementById('img-container').innerHTML = "<div>API Offline</div>";
                     });
 
             } else {
