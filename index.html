@@ -1,51 +1,96 @@
-<div class="img-slot" id="ui-img-container">
-    <img id="ui-img" src="" style="display:none; width:100%; height:100%; object-fit: contain;">
-    <span id="ui-img-loader">FINDING ARTWORK...</span>
-</div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DEV | Pokemon Vendor API</title>
+    <style>
+        :root { --bg: #0f0f0f; --card: #1a1a1a; --accent: #3498db; --text: #ffffff; --success: #2ecc71; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .container { background: var(--card); width: 100%; max-width: 400px; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.8); border: 1px solid #333; }
+        .img-slot { width: 100%; aspect-ratio: 2.5/3.5; background: #222; display: flex; align-items: center; justify-content: center; color: #555; position: relative; }
+        .img-slot img { width: 100%; height: 100%; object-fit: contain; display: none; }
+        .content { padding: 25px; }
+        .label { font-size: 10px; text-transform: uppercase; color: #777; letter-spacing: 1.5px; margin-bottom: 4px; font-weight: 700; }
+        .title { font-size: 22px; margin: 0 0 15px 0; font-weight: 800; line-height: 1.2; }
+        .price-box { background: var(--success); padding: 20px; border-radius: 16px; text-align: center; color: #000; margin-top: 20px; }
+        .price-val { font-size: 42px; font-weight: 900; }
+        /* Dev Debug Styles */
+        #debug-console { width: 100%; max-width: 400px; margin-top: 20px; background: #000; padding: 15px; border-radius: 12px; font-family: monospace; font-size: 11px; color: #00ff00; border: 1px solid #444; }
+    </style>
+</head>
+<body>
 
-<script>
-    const params = new URLSearchParams(window.location.search);
-    const cardId = params.get('id');
+    <div class="container">
+        <div class="img-slot" id="ui-img-container">
+            <img id="ui-card-img" src="" alt="Card Art">
+            <span id="ui-loader">FETCHING ARTWORK...</span>
+        </div>
+        <div class="content">
+            <div class="label">Product Name</div>
+            <h1 id="ui-name" class="title">Awaiting Scan...</h1>
+            <div id="ui-details" style="font-size: 14px; color: #aaa; margin-bottom: 20px;">--</div>
+            
+            <div class="price-box">
+                <div class="label" style="color: #05401d;">List Price</div>
+                <span id="ui-price" class="price-val">--</span>
+            </div>
+        </div>
+    </div>
 
-    fetch('card_data.json')
-        .then(res => res.json())
-        .then(data => {
-            const searchId = decodeURIComponent(cardId).trim();
-            const card = data.find(c => String(c['Unique Code']).trim() === searchId);
+    <div id="debug-console">
+        <div>[SYSTEM] Dev Space Initialized</div>
+        <div id="log-status">Ready for ID...</div>
+    </div>
 
-            if (card) {
-                // 1. FILL TEXT DATA (From your manual file)
-                document.getElementById('ui-name').innerText = card['Product Name'];
-                document.getElementById('ui-set').innerText = `#${card['Card Number']} | ${card['Set']}`;
-                document.getElementById('ui-grade').innerText = `${card['Grade']} | ${card['Card Condition']}`;
-                
-                const price = (card['My Sales Price'] && card['My Sales Price'] !== "TBD") ? card['My Sales Price'] : card['Suggested Selling Price (Fair Market)'];
-                document.getElementById('ui-price').innerText = price;
+    <script>
+        const log = (msg) => { document.getElementById('log-status').innerHTML += `<br>> ${msg}`; };
+        const params = new URLSearchParams(window.location.search);
+        const cardId = params.get('id');
 
-                // 2. FETCH IMAGE DATA (The "Walking" API call)
-                // We search by Name and Card Number to get the exact artwork
-                const cleanName = card['Product Name'].split('(')[0].trim(); // Removes the (80) for better searching
-                const searchUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${cleanName}" number:"${card['Card Number']}"`;
+        if (cardId) {
+            log(`Scan Detected: ${cardId}`);
+            // Use 'card_data.json' in your dev repo
+            fetch('card_data.json')
+                .then(res => res.json())
+                .then(data => {
+                    const searchId = decodeURIComponent(cardId).trim();
+                    const card = data.find(c => String(c['Unique Code']).trim() === searchId);
 
-                fetch(searchUrl)
-                    .then(response => response.json())
-                    .then(artData => {
-                        if (artData.data && artData.data.length > 0) {
-                            const imgUrl = artData.data[0].images.large;
-                            const imgElement = document.getElementById('ui-img');
-                            imgElement.src = imgUrl;
-                            imgElement.style.display = 'block';
-                            document.getElementById('ui-img-loader').style.display = 'none';
-                        } else {
-                            document.getElementById('ui-img-loader').innerText = "NO IMAGE FOUND";
-                        }
-                    })
-                    .catch(() => {
-                        document.getElementById('ui-img-loader').innerText = "IMAGE ERROR";
-                    });
+                    if (card) {
+                        log(`Match Found: ${card['Product Name']}`);
+                        document.getElementById('ui-name').innerText = card['Product Name'];
+                        document.getElementById('ui-details').innerText = `#${card['Card Number']} | ${card['Set']} | ${card['Card Condition']}`;
+                        document.getElementById('ui-price').innerText = card['My Sales Price'] || "--";
 
-            } else {
-                document.getElementById('ui-name').innerText = "Card Not Found";
-            }
-        });
-</script>
+                        // --- THE API CALL (Walking) ---
+                        // Strip (80) etc for cleaner searching
+                        const cleanName = card['Product Name'].split('(')[0].trim();
+                        const searchUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${cleanName}" number:"${card['Card Number']}"`;
+                        
+                        log(`Calling API: q=name:"${cleanName}"...`);
+                        
+                        fetch(searchUrl)
+                            .then(resp => resp.json())
+                            .then(apiData => {
+                                if (apiData.data && apiData.data.length > 0) {
+                                    const imgUrl = apiData.data[0].images.large;
+                                    document.getElementById('ui-card-img').src = imgUrl;
+                                    document.getElementById('ui-card-img').style.display = 'block';
+                                    document.getElementById('ui-loader').style.display = 'none';
+                                    log(`API Success: Artwork Loaded`);
+                                } else {
+                                    document.getElementById('ui-loader').innerText = "ARTWORK NOT FOUND";
+                                    log(`API Error: No card match for Name/Number`);
+                                }
+                            });
+                    } else {
+                        log(`Error: ID ${searchId} not in JSON`);
+                        document.getElementById('ui-name').innerText = "Card Not Found";
+                    }
+                })
+                .catch(err => log(`Fetch Error: ${err}`));
+        }
+    </script>
+</body>
+</html>
