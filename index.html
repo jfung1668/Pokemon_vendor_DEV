@@ -3,129 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DEV | Pokemon Vendor</title>
+    <title>DEV | Debug Mode</title>
     <style>
-        :root { --bg: #050505; --card: #151515; --accent: #00d26a; --text: #e0e0e0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
-        .container { background: var(--card); width: 100%; max-width: 400px; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #333; }
+        :root { --bg: #050505; --card: #151515; --accent: #00d26a; --err: #ff4757; --text: #e0e0e0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, monospace; background: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
         
-        /* IMAGE SLOT */
-        .img-slot { width: 100%; aspect-ratio: 2.5/3.5; background: #222; display: flex; align-items: center; justify-content: center; position: relative; border-bottom: 1px solid #333; }
-        .img-slot img { width: 100%; height: 100%; object-fit: contain; display: none; z-index: 2; }
-        .loader { font-size: 12px; letter-spacing: 2px; color: #555; font-weight: 700; text-transform: uppercase; }
-
-        /* CONTENT */
-        .content { padding: 25px; }
-        .label { font-size: 10px; text-transform: uppercase; color: #666; letter-spacing: 1.5px; margin-bottom: 5px; font-weight: 700; }
-        .title { font-size: 20px; margin: 0 0 5px 0; font-weight: 800; line-height: 1.2; color: #fff; }
-        .sub-title { font-size: 14px; color: #888; margin-bottom: 20px; }
+        .container { background: var(--card); width: 100%; max-width: 400px; border-radius: 20px; overflow: hidden; border: 1px solid #333; margin-bottom: 20px; }
+        .img-slot { width: 100%; aspect-ratio: 2.5/3.5; background: #222; display: flex; align-items: center; justify-content: center; position: relative; }
+        .img-slot img { width: 100%; height: 100%; object-fit: contain; display: none; }
         
-        /* PRICE BOX */
-        .price-box { background: rgba(0, 210, 106, 0.1); border: 1px solid var(--accent); padding: 15px; border-radius: 12px; text-align: center; color: var(--accent); }
-        .price-val { font-size: 36px; font-weight: 900; display: block; letter-spacing: -1px; }
-
-        /* DEBUG CONSOLE */
-        #debug { width: 100%; max-width: 400px; margin-top: 20px; font-family: monospace; font-size: 10px; color: #555; border-top: 1px solid #333; padding-top: 10px; }
-        .log-ok { color: var(--accent); }
-        .log-err { color: #ff4757; }
+        .content { padding: 25px; text-align: center; }
+        .title { font-size: 20px; margin: 0 0 10px 0; font-weight: 800; color: #fff; }
+        .price-val { font-size: 32px; font-weight: 900; color: var(--accent); display: block; }
+        
+        /* DEBUG TOOLS */
+        .debug-panel { width: 100%; max-width: 400px; border-top: 1px solid #333; padding-top: 20px; }
+        .btn-copy { background: var(--err); color: #fff; border: none; width: 100%; padding: 15px; font-weight: bold; font-size: 16px; border-radius: 8px; cursor: pointer; text-transform: uppercase; margin-bottom: 10px; }
+        .btn-copy:active { opacity: 0.8; }
+        #status-log { font-family: monospace; font-size: 10px; color: #666; white-space: pre-wrap; text-align: left; background: #111; padding: 10px; border-radius: 8px; height: 150px; overflow-y: auto; }
     </style>
 </head>
 <body>
 
     <div class="container">
         <div class="img-slot">
-            <img id="ui-img" src="" alt="Card Art">
-            <span id="ui-loader" class="loader">Waiting for Scan...</span>
+            <img id="ui-img" src="">
+            <span id="ui-loader">INITIALIZING...</span>
         </div>
         <div class="content">
-            <div class="label">Product Name</div>
             <h1 id="ui-name" class="title">--</h1>
-            <div id="ui-set" class="sub-title">--</div>
-            
-            <div class="price-box">
-                <div class="label" style="color:var(--accent);">List Price</div>
-                <span id="ui-price" class="price-val">--</span>
-            </div>
+            <div id="ui-set" style="color:#888; font-size:14px; margin-bottom:15px;">--</div>
+            <span id="ui-price" class="price-val">--</span>
         </div>
     </div>
 
-    <div id="debug">
-        <div>[SYSTEM] Dev Space v2.1</div>
-        <div id="console-output">Initializing...</div>
+    <div class="debug-panel">
+        <button class="btn-copy" onclick="copyLogs()">📋 COPY ERROR LOGS</button>
+        <div id="status-log">System Ready...</div>
     </div>
 
     <script>
-        // Logger Helper
-        const log = (msg, type='neutral') => {
-            const color = type === 'ok' ? 'log-ok' : type === 'err' ? 'log-err' : '';
-            document.getElementById('console-output').innerHTML += `<br><span class="${color}">> ${msg}</span>`;
+        // --- FLIGHT RECORDER ---
+        let logBuffer = [];
+        const log = (msg) => {
+            const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+            const entry = `[${timestamp}] ${msg}`;
+            logBuffer.push(entry);
+            const logEl = document.getElementById('status-log');
+            logEl.innerText += `\n${entry}`;
+            logEl.scrollTop = logEl.scrollHeight;
+            console.log(entry);
         };
 
-        const params = new URLSearchParams(window.location.search);
-        const rawId = params.get('id');
-
-        if (rawId) {
-            // 1. NORMALIZE ID (Handle 'dev' vs 'DEV' casing issues)
-            const searchId = decodeURIComponent(rawId).trim().toUpperCase();
-            log(`Scanning ID: ${searchId}`);
-
-            document.getElementById('ui-loader').innerText = "FETCHING DATA...";
-
-            // 2. LOAD DATABASE
-            fetch('card_data.json')
-                .then(res => {
-                    if (!res.ok) throw new Error("card_data.json missing (404)");
-                    return res.json();
-                })
-                .then(data => {
-                    log(`Database Loaded (${data.length} cards)`, 'ok');
-
-                    // 3. FIND CARD (Case-Insensitive Match)
-                    const card = data.find(c => String(c['Unique Code']).trim().toUpperCase() === searchId);
-
-                    if (card) {
-                        // UPDATE TEXT UI
-                        document.getElementById('ui-name').innerText = card['Product Name'];
-                        document.getElementById('ui-set').innerText = `${card['Set']} | #${card['Card Number']}`;
-                        document.getElementById('ui-price').innerText = card['My Sales Price'];
-                        log(`Match: ${card['Product Name']}`, 'ok');
-
-                        // 4. FETCH IMAGE (The API Call)
-                        document.getElementById('ui-loader').innerText = "FINDING ART...";
-                        
-                        // Clean name for API (Remove (80), etc.)
-                        const cleanName = card['Product Name'].split('(')[0].trim();
-                        const apiQuery = `https://api.pokemontcg.io/v2/cards?q=name:"${cleanName}" number:"${card['Card Number']}"`;
-
-                        fetch(apiQuery)
-                            .then(r => r.json())
-                            .then(apiData => {
-                                if (apiData.data && apiData.data.length > 0) {
-                                    const imgUrl = apiData.data[0].images.large;
-                                    const imgEl = document.getElementById('ui-img');
-                                    imgEl.src = imgUrl;
-                                    imgEl.style.display = 'block';
-                                    document.getElementById('ui-loader').style.display = 'none';
-                                    log(`Image Loaded`, 'ok');
-                                } else {
-                                    document.getElementById('ui-loader').innerText = "NO ARTWORK FOUND";
-                                    log(`API: No image for ${cleanName}`, 'err');
-                                }
-                            });
-
-                    } else {
-                        document.getElementById('ui-name').innerText = "Item Not Found";
-                        document.getElementById('ui-loader').innerText = "404 ERROR";
-                        log(`ID ${searchId} not in JSON`, 'err');
-                    }
-                })
-                .catch(err => {
-                    document.getElementById('ui-loader').innerText = "SYSTEM ERROR";
-                    log(err.message, 'err');
-                });
-        } else {
-            log("Ready. Scan a QR code to begin.");
+        function copyLogs() {
+            const report = `=== POKEMON VENDOR DEBUG REPORT ===\nURL: ${window.location.href}\nUser Agent: ${navigator.userAgent}\n\nLOGS:\n${logBuffer.join('\n')}`;
+            navigator.clipboard.writeText(report).then(() => {
+                alert("✅ LOGS COPIED! Paste them into the chat.");
+            }).catch(err => {
+                alert("❌ Copy Failed. Select text manually.");
+            });
         }
-    </script>
-</body>
-</html>
+
+        // --- MAIN LOGIC ---
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const rawId = params.get('id');
+            
+            if (!rawId) {
+                log("CRITICAL: No ID in URL.");
+                document.getElementById('ui-loader').innerText = "NO ID SCANNED";
+            } else {
+                // 1. NORMALIZE ID
+                const searchId = decodeURIComponent(rawId).trim().toUpperCase();
+                log(`STEP 1: Scanning ID: ${searchId}`);
+
+                // 2. FETCH JSON
+                log("STEP 2: Fetching card_data.json...");
+                fetch('card_data.json')
+                    .then(res => {
+                        if (!res.ok) throw new Error(`HTTP ${res.status} - ${res.statusText}`);
+                        return res.json();
+                    })
+                    .then(data => {
+                        log(`STEP 3: Database Loaded (${data.length} records)`);
+
+                        // 3. FIND MATCH
+                        const card = data.find(c => String(c['Unique Code']).trim().toUpperCase() === searchId);
+
+                        if (card) {
