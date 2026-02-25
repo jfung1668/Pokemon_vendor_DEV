@@ -91,3 +91,48 @@
                         const card = data.find(c => String(c['Unique Code']).trim().toUpperCase() === searchId);
 
                         if (card) {
+                            log(`STEP 4: Match Found! Name: ${card['Product Name']}`);
+                            document.getElementById('ui-name').innerText = card['Product Name'];
+                            document.getElementById('ui-set').innerText = `${card['Set']} #${card['Card Number']}`;
+                            document.getElementById('ui-price').innerText = card['My Sales Price'];
+
+                            // 4. API CALL
+                            const cleanName = card['Product Name'].split('(')[0].trim();
+                            const cleanNumber = String(card['Card Number']).split('/')[0].trim();
+                            const apiUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${cleanName}" number:"${cleanNumber}"`;
+                            
+                            log(`STEP 5: API Call -> ${cleanName} #${cleanNumber}`);
+                            document.getElementById('ui-loader').innerText = "FETCHING ART...";
+
+                            fetch(apiUrl)
+                                .then(r => r.json())
+                                .then(apiData => {
+                                    if (apiData.data && apiData.data.length > 0) {
+                                        const imgUrl = apiData.data[0].images.large;
+                                        document.getElementById('ui-img').src = imgUrl;
+                                        document.getElementById('ui-img').style.display = 'block';
+                                        document.getElementById('ui-loader').style.display = 'none';
+                                        log("SUCCESS: Image loaded.");
+                                    } else {
+                                        log("API ERROR: No image found in TCG database.");
+                                        document.getElementById('ui-loader').innerText = "NO ARTWORK";
+                                    }
+                                })
+                                .catch(e => log(`API FETCH FAIL: ${e.message}`));
+
+                        } else {
+                            log(`ERROR: ID ${searchId} not found in JSON.`);
+                            document.getElementById('ui-name').innerText = "NOT FOUND";
+                        }
+                    })
+                    .catch(err => {
+                        log(`FATAL ERROR: ${err.message}`);
+                        document.getElementById('ui-loader').innerText = "SYSTEM ERROR";
+                    });
+            }
+        } catch (e) {
+            log(`GLOBAL CRASH: ${e.message}`);
+        }
+    </script>
+</body>
+</html>
