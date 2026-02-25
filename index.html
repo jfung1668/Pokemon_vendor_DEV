@@ -19,7 +19,6 @@
         /* DEBUG TOOLS */
         .debug-panel { width: 100%; max-width: 400px; border-top: 1px solid #333; padding-top: 20px; }
         .btn-copy { background: var(--err); color: #fff; border: none; width: 100%; padding: 15px; font-weight: bold; font-size: 16px; border-radius: 8px; cursor: pointer; text-transform: uppercase; margin-bottom: 10px; }
-        .btn-copy:active { opacity: 0.8; }
         #status-log { font-family: monospace; font-size: 10px; color: #666; white-space: pre-wrap; text-align: left; background: #111; padding: 10px; border-radius: 8px; height: 150px; overflow-y: auto; }
     </style>
 </head>
@@ -58,10 +57,8 @@
         function copyLogs() {
             const report = `=== POKEMON VENDOR DEBUG REPORT ===\nURL: ${window.location.href}\nUser Agent: ${navigator.userAgent}\n\nLOGS:\n${logBuffer.join('\n')}`;
             navigator.clipboard.writeText(report).then(() => {
-                alert("✅ LOGS COPIED! Paste them into the chat.");
-            }).catch(err => {
-                alert("❌ Copy Failed. Select text manually.");
-            });
+                alert("✅ LOGS COPIED!");
+            }).catch(err => alert("❌ Copy Failed. Select text manually."));
         }
 
         // --- MAIN LOGIC ---
@@ -74,65 +71,3 @@
                 document.getElementById('ui-loader').innerText = "NO ID SCANNED";
             } else {
                 // 1. NORMALIZE ID
-                const searchId = decodeURIComponent(rawId).trim().toUpperCase();
-                log(`STEP 1: Scanning ID: ${searchId}`);
-
-                // 2. FETCH JSON
-                log("STEP 2: Fetching card_data.json...");
-                fetch('card_data.json')
-                    .then(res => {
-                        if (!res.ok) throw new Error(`HTTP ${res.status} - ${res.statusText}`);
-                        return res.json();
-                    })
-                    .then(data => {
-                        log(`STEP 3: Database Loaded (${data.length} records)`);
-
-                        // 3. FIND MATCH
-                        const card = data.find(c => String(c['Unique Code']).trim().toUpperCase() === searchId);
-
-                        if (card) {
-                            log(`STEP 4: Match Found! Name: ${card['Product Name']}`);
-                            document.getElementById('ui-name').innerText = card['Product Name'];
-                            document.getElementById('ui-set').innerText = `${card['Set']} #${card['Card Number']}`;
-                            document.getElementById('ui-price').innerText = card['My Sales Price'];
-
-                            // 4. API CALL
-                            const cleanName = card['Product Name'].split('(')[0].trim();
-                            const cleanNumber = String(card['Card Number']).split('/')[0].trim();
-                            const apiUrl = `https://api.pokemontcg.io/v2/cards?q=name:"${cleanName}" number:"${cleanNumber}"`;
-                            
-                            log(`STEP 5: API Call -> ${cleanName} #${cleanNumber}`);
-                            document.getElementById('ui-loader').innerText = "FETCHING ART...";
-
-                            fetch(apiUrl)
-                                .then(r => r.json())
-                                .then(apiData => {
-                                    if (apiData.data && apiData.data.length > 0) {
-                                        const imgUrl = apiData.data[0].images.large;
-                                        document.getElementById('ui-img').src = imgUrl;
-                                        document.getElementById('ui-img').style.display = 'block';
-                                        document.getElementById('ui-loader').style.display = 'none';
-                                        log("SUCCESS: Image loaded.");
-                                    } else {
-                                        log("API ERROR: No image found in TCG database.");
-                                        document.getElementById('ui-loader').innerText = "NO ARTWORK";
-                                    }
-                                })
-                                .catch(e => log(`API FETCH FAIL: ${e.message}`));
-
-                        } else {
-                            log(`ERROR: ID ${searchId} not found in JSON.`);
-                            document.getElementById('ui-name').innerText = "NOT FOUND";
-                        }
-                    })
-                    .catch(err => {
-                        log(`FATAL ERROR: ${err.message}`);
-                        document.getElementById('ui-loader').innerText = "SYSTEM ERROR";
-                    });
-            }
-        } catch (e) {
-            log(`GLOBAL CRASH: ${e.message}`);
-        }
-    </script>
-</body>
-</html>
