@@ -3,71 +3,118 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DEV | Debug Mode</title>
+    <title>DEV | Safe Mode</title>
     <style>
-        :root { --bg: #050505; --card: #151515; --accent: #00d26a; --err: #ff4757; --text: #e0e0e0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, monospace; background: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
-        
-        .container { background: var(--card); width: 100%; max-width: 400px; border-radius: 20px; overflow: hidden; border: 1px solid #333; margin-bottom: 20px; }
-        .img-slot { width: 100%; aspect-ratio: 2.5/3.5; background: #222; display: flex; align-items: center; justify-content: center; position: relative; }
-        .img-slot img { width: 100%; height: 100%; object-fit: contain; display: none; }
-        
-        .content { padding: 25px; text-align: center; }
-        .title { font-size: 20px; margin: 0 0 10px 0; font-weight: 800; color: #fff; }
-        .price-val { font-size: 32px; font-weight: 900; color: var(--accent); display: block; }
-        
-        /* DEBUG TOOLS */
-        .debug-panel { width: 100%; max-width: 400px; border-top: 1px solid #333; padding-top: 20px; }
-        .btn-copy { background: var(--err); color: #fff; border: none; width: 100%; padding: 15px; font-weight: bold; font-size: 16px; border-radius: 8px; cursor: pointer; text-transform: uppercase; margin-bottom: 10px; }
-        #status-log { font-family: monospace; font-size: 10px; color: #666; white-space: pre-wrap; text-align: left; background: #111; padding: 10px; border-radius: 8px; height: 150px; overflow-y: auto; }
+        body { background: #000; color: #fff; font-family: monospace; padding: 20px; text-align: center; }
+        #console { text-align: left; background: #111; border: 1px solid #333; padding: 10px; height: 300px; overflow-y: scroll; margin-top: 20px; color: #aaa; font-size: 11px; }
+        .log-err { color: #ff4757; font-weight: bold; }
+        .log-ok { color: #2ecc71; }
+        img { max-width: 100%; margin-top: 20px; border: 1px solid #333; display: none; }
+        button { background: #ff4757; color: white; padding: 15px; border: none; width: 100%; font-size: 16px; cursor: pointer; margin-top: 10px; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <div class="img-slot">
-            <img id="ui-img" src="">
-            <span id="ui-loader">INITIALIZING...</span>
-        </div>
-        <div class="content">
-            <h1 id="ui-name" class="title">--</h1>
-            <div id="ui-set" style="color:#888; font-size:14px; margin-bottom:15px;">--</div>
-            <span id="ui-price" class="price-val">--</span>
-        </div>
-    </div>
-
-    <div class="debug-panel">
-        <button class="btn-copy" onclick="copyLogs()">📋 COPY ERROR LOGS</button>
-        <div id="status-log">System Ready...</div>
-    </div>
+    <h1>SAFE MODE DIAGNOSTIC</h1>
+    <h2 id="status">INITIALIZING...</h2>
+    <div id="card-info" style="color: #2ecc71; font-size: 18px; margin: 10px 0;"></div>
+    <img id="card-img" src="" />
+    
+    <button onclick="copyLogs()">COPY LOGS</button>
+    <div id="console">Waiting for logs...</div>
 
     <script>
-        // --- FLIGHT RECORDER ---
-        let logBuffer = [];
-        const log = (msg) => {
-            const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
-            const entry = `[${timestamp}] ${msg}`;
-            logBuffer.push(entry);
-            const logEl = document.getElementById('status-log');
-            logEl.innerText += `\n${entry}`;
-            logEl.scrollTop = logEl.scrollHeight;
-            console.log(entry);
+        // GLOBAL ERROR CATCHER (Must be first)
+        window.onerror = function(msg, url, line) {
+            const errBox = document.getElementById('console');
+            errBox.innerHTML += `<div class="log-err">⛔ CRITICAL ERROR: ${msg} (Line ${line})</div>`;
+            document.getElementById('status').innerText = "CRASHED";
+            return false;
         };
 
-        function copyLogs() {
-            const report = `=== POKEMON VENDOR DEBUG REPORT ===\nURL: ${window.location.href}\nUser Agent: ${navigator.userAgent}\n\nLOGS:\n${logBuffer.join('\n')}`;
-            navigator.clipboard.writeText(report).then(() => {
-                alert("✅ LOGS COPIED!");
-            }).catch(err => alert("❌ Copy Failed. Select text manually."));
+        // LOGGER
+        function log(msg, type='') {
+            const box = document.getElementById('console');
+            const time = new Date().toLocaleTimeString();
+            box.innerHTML += `<div class="${type}">[${time}] ${msg}</div>`;
+            console.log(msg);
         }
 
-        // --- MAIN LOGIC ---
-        try {
-            const params = new URLSearchParams(window.location.search);
-            const rawId = params.get('id');
-            
-            if (!rawId) {
-                log("CRITICAL: No ID in URL.");
-                document.getElementById('ui-loader').innerText = "NO ID SCANNED";
-            } else {
-                // 1. NORMALIZE ID
+        // COPY FUNCTION
+        function copyLogs() {
+            const txt = document.getElementById('console').innerText;
+            navigator.clipboard.writeText(txt).then(() => alert("Logs Copied!"));
+        }
+
+        // MAIN LOGIC
+        log("System started.");
+        
+        const params = new URLSearchParams(window.location.search);
+        const rawId = params.get('id');
+        
+        if (!rawId) {
+            log("❌ No ID found in URL.", "log-err");
+            document.getElementById('status').innerText = "NO ID";
+        } else {
+            // 1. NORMALIZE ID
+            const searchId = decodeURIComponent(rawId).trim().toUpperCase();
+            log(`✅ Scanning for ID: ${searchId}`, "log-ok");
+            document.getElementById('status').innerText = "LOADING DATA...";
+
+            // 2. FETCH JSON
+            fetch('card_data.json')
+                .then(res => {
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    return res.json();
+                })
+                .then(data => {
+                    log(`✅ Database loaded (${data.length} records)`, "log-ok");
+
+                    // 3. FIND CARD
+                    const card = data.find(c => String(c['Unique Code']).trim().toUpperCase() === searchId);
+
+                    if (card) {
+                        const name = card['Product Name'];
+                        log(`✅ Match: ${name}`, "log-ok");
+                        document.getElementById('status').innerText = "FETCHING ART...";
+                        document.getElementById('card-info').innerText = `${name} - ${card['My Sales Price']}`;
+
+                        // 4. PREPARE API (Handle Special Characters)
+                        const cleanName = name.split('(')[0].trim();
+                        const cleanNum = String(card['Card Number']).split('/')[0].trim();
+                        
+                        // SAFE QUERY CONSTRUCTION
+                        const query = `name:"${cleanName}" number:"${cleanNum}"`;
+                        log(`Query: ${query}`);
+                        
+                        const apiUrl = `https://api.pokemontcg.io/v2/cards?q=${encodeURIComponent(query)}`;
+                        
+                        fetch(apiUrl)
+                            .then(r => r.json())
+                            .then(apiData => {
+                                if (apiData.data && apiData.data.length > 0) {
+                                    const imgUrl = apiData.data[0].images.large;
+                                    document.getElementById('card-img').src = imgUrl;
+                                    document.getElementById('card-img').style.display = 'block';
+                                    document.getElementById('status').innerText = "READY";
+                                    log("✅ Image Loaded", "log-ok");
+                                } else {
+                                    log("⚠️ No image in TCG database", "log-err");
+                                    document.getElementById('status').innerText = "NO IMAGE";
+                                }
+                            })
+                            .catch(e => log(`API Error: ${e.message}`, "log-err"));
+
+                    } else {
+                        log(`❌ ID ${searchId} not found in JSON`, "log-err");
+                        document.getElementById('status').innerText = "NOT FOUND";
+                    }
+                })
+                .catch(err => {
+                    log(`❌ JSON Error: ${err.message}`, "log-err");
+                    log("Did you upload card_data.json?", "log-err");
+                });
+        }
+    </script>
+</body>
+</html>
